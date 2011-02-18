@@ -1,4 +1,5 @@
 var github = require('github');
+var step = require('step');
 
 var login = process.argv[2];
 var apiToken = process.argv[3];;
@@ -25,14 +26,27 @@ repoApi.rmCollaborator = function(user, repo, collaborator, callback) {
 		   {}, null, this.$createListener(callback, 'collaborators'));
 };
 
+var steps = [function() { return null; }];
 collaborators.forEach(function(collaborator) {
-    repoApi.addCollaborator(user, repo, collaborator, function(err) {
-	if (err)
-	    console.error(err);
-	else
-	    repoApi.rmCollaborator(user, repo, collaborator, function(err) {
-		if (err)
-		    console.error(err);
-	    });
-    });
+    steps.push((function(collaborator) {
+		    return function(err) {
+			if (err)
+			    throw err;
+			console.log('+ ' + collaborator);
+			repoApi.addCollaborator(user, repo, collaborator, this);
+		    };
+		})(collaborator));
+    steps.push((function(collaborator) {
+		    return function(err) {
+			if (err)
+			    throw err;
+			console.log('- ' + collaborator);
+			repoApi.rmCollaborator(user, repo, collaborator, this);
+		    };
+		})(collaborator));
 });
+steps.push(function(err) {
+    if (err)
+	console.error(err);
+});
+step.apply(step, steps);
