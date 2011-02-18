@@ -26,27 +26,20 @@ repoApi.rmCollaborator = function(user, repo, collaborator, callback) {
 		   {}, null, this.$createListener(callback, 'collaborators'));
 };
 
-var steps = [function() { return null; }];
-collaborators.forEach(function(collaborator) {
-    steps.push((function(collaborator) {
-		    return function(err) {
-			if (err)
-			    throw err;
-			console.log('+ ' + collaborator);
-			repoApi.addCollaborator(user, repo, collaborator, this);
-		    };
-		})(collaborator));
-    steps.push((function(collaborator) {
-		    return function(err) {
-			if (err)
-			    throw err;
-			console.log('- ' + collaborator);
-			repoApi.rmCollaborator(user, repo, collaborator, this);
-		    };
-		})(collaborator));
-});
-steps.push(function(err) {
-    if (err)
-	console.error(err);
-});
-step.apply(step, steps);
+function takeNext() {
+    if (collaborators.length < 1) {
+	return;
+    } else {
+	var collaborator = collaborators.pop();
+	repoApi.addCollaborator(user, repo, collaborator, function(err) {
+	    console.log('+ ' + collaborator);
+	    repoApi.rmCollaborator(user, repo, collaborator, function(err) {
+		console.log('- ' + collaborator);
+		process.nextTick(takeNext);
+	    });
+	});
+    }
+}
+
+for(var i = 0; i < 4; i++)
+    takeNext();
